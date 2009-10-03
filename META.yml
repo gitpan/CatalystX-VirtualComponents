@@ -19,9 +19,12 @@ no_index:
     - inc
     - t
 requires:
+  Catalyst::Runtime: 5.8
+  Devel::InheritNamespace: 0
   Module::Pluggable::Object: 0
   Moose: 0
+  namespace::clean: 0
 resources:
   license: http://dev.perl.org/licenses/
   repository: git://github.com/lestrrat/CatalystX-VirtualComponents.git
-version: 0.00002
+version: 0.00003
