@@ -4,19 +4,24 @@ use namespace::clean -except => qw(meta);
 use Module::Pluggable::Object;
 use Devel::InheritNamespace;
 
-our $VERSION = '0.00003';
+our $VERSION = '0.00004';
 
 sub search_components {
     my ($class, $namespace, @namespaces) = @_;
 
-    my @paths   = qw( ::Controller ::C ::Model ::M ::View ::V );
+    my @paths   = 
+        map { ("${_}Base", $_) }
+        qw( ::Controller ::C ::Model ::M ::View ::V )
+    ;
     my $config  = $class->config->{ setup_components };
     my $extra   = delete $config->{ search_extra } || [];
 
     my $comps;
     foreach my $ns (@namespaces) {
         foreach my $path (@paths) {
-            my $local_namespace = $namespace . $path;;
+            my $local_namespace = ($path =~ /^(.+)Base$/) ?
+                "$namespace$1" : "$namespace$path"
+            ;
             my $inherit_namespace = $path;
             $inherit_namespace =~ s/^(?=::)/$ns/;
             my @search_path = ($inherit_namespace, @$extra);
@@ -41,10 +46,20 @@ sub search_components {
 override setup_components => sub {
     my $class = shift;
 
-    my @hierarchy =
-        grep { $_->isa('Catalyst') && $_ ne 'Catalyst' }
-        $class->meta->linearized_isa
-    ;
+    my @hierarchy;
+    if (exists $class->config->{VirtualComponents}) {
+        if (exists $class->config->{VirtualComponents}->{inherit}) {
+            @hierarchy = (
+                $class,
+                @{ $class->config->{VirtualComponents}->{inherit} }
+            );
+        }
+    } else {
+        @hierarchy =
+            grep { $_->isa('Catalyst') && $_ ne 'Catalyst' }
+            $class->meta->linearized_isa
+        ;
+    }
 
     my $comps = $class->search_components( @hierarchy );
 
@@ -160,6 +175,21 @@ MyApp::Extended::Controller::Root takes precedence over the base class, so
 only the local component will be loaded.  MyApp::Extended::Model::XML::Feed
 only exists in the MyApp::Extended namespace, so it just works like a
 normal Catalyst model.
+
+=head1 GENERATING VIRTUAL CLASSES WITHOUT INHERITANCE
+
+If you don't want to subclass, or use a more fine-grained control on which
+namespaces to look for base components, specify the namespaces in a config
+element:
+
+    __PACKAGE__->config(
+        VirtualComponents => {
+            inherit => [
+                'NamespaceA',
+                'NamespaceB'
+            ]
+        }
+    );
 
 =head1 USING IN CONJUNCTION WITH CatalystX::AppBuilder
 
